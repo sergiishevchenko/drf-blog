@@ -1,0 +1,5 @@
+Hi {{user.email}}
+
+Please click the link below to verify your account.
+
+http://{{domain}}{% url 'posts:api-v1:verify-user' token=token %}
