@@ -7,9 +7,11 @@ djangorestframework-simplejwt
 django-celery-beat
 django-celery-results
 django-cors-headers
+django_debug_toolbar
 django-redis
 drf-nested-routers
 drf-yasg
+environs[django]
 Faker
 flake8
 isort
