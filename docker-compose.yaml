@@ -1,0 +1,106 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:13.8
+    restart: always
+    container_name: postgresql_container
+    expose:
+      - ${POSTGRES_EXPOSE}
+    env_file:
+      - ./.env
+    networks:
+      - bridge_network
+
+  redis:
+    image: redis:7
+    container_name: redis_container
+    command: redis-server --save 60 1 --loglevel warning
+    depends_on:
+      - db
+    env_file:
+      - ./.env
+    networks:
+      - bridge_network
+
+  app:
+    build: .
+    restart: always
+    container_name: app_container
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./blog:/app
+    env_file:
+      - ./.env
+    depends_on:
+      - db
+      - redis
+    networks:
+      - bridge_network
+
+  nginx:
+    image: nginx:1.19.3
+    restart: always
+    ports:
+      - ${NGINX_PORT}:${NGINX_PORT}
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/site.conf.template
+    env_file:
+      - ./.env
+    depends_on:
+      - app
+    networks:
+      - bridge_network
+
+  celery:
+    restart: always
+    build:
+      context: .
+    command: celery -A blog worker -l INFO
+    volumes:
+      - ./blog:/app
+    container_name: celery
+    env_file:
+      - ./.env
+    depends_on:
+      - redis
+      - db
+    networks:
+      - bridge_network
+
+  celery-beat:
+    restart: always
+    build:
+      context: .
+    command: celery -A blog beat -l INFO
+    volumes:
+      - ./blog:/app
+    container_name: celery-beat
+    env_file:
+      - ./.env
+    depends_on:
+      - redis
+      - db
+    networks:
+      - bridge_network
+
+  flower:
+    build:
+      context: .
+    image: mher/flower
+    volumes:
+      - .:/app
+    env_file:
+      - ./.env
+    ports:
+      - 5557:5555
+    depends_on:
+      - redis
+      - db
+    networks:
+      - bridge_network
+    restart: unless-stopped
+
+networks:
+  bridge_network:
+    driver: bridge
